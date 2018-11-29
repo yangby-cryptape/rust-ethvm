@@ -5,3 +5,9 @@
 // <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
+
+extern crate ethvm_internals;
+
+mod instruction_set;
+
+pub use instruction_set::{OpCode, OpCodes};
