@@ -460,6 +460,51 @@
 <span id="460">460</span>
 <span id="461">461</span>
 <span id="462">462</span>
+<span id="463">463</span>
+<span id="464">464</span>
+<span id="465">465</span>
+<span id="466">466</span>
+<span id="467">467</span>
+<span id="468">468</span>
+<span id="469">469</span>
+<span id="470">470</span>
+<span id="471">471</span>
+<span id="472">472</span>
+<span id="473">473</span>
+<span id="474">474</span>
+<span id="475">475</span>
+<span id="476">476</span>
+<span id="477">477</span>
+<span id="478">478</span>
+<span id="479">479</span>
+<span id="480">480</span>
+<span id="481">481</span>
+<span id="482">482</span>
+<span id="483">483</span>
+<span id="484">484</span>
+<span id="485">485</span>
+<span id="486">486</span>
+<span id="487">487</span>
+<span id="488">488</span>
+<span id="489">489</span>
+<span id="490">490</span>
+<span id="491">491</span>
+<span id="492">492</span>
+<span id="493">493</span>
+<span id="494">494</span>
+<span id="495">495</span>
+<span id="496">496</span>
+<span id="497">497</span>
+<span id="498">498</span>
+<span id="499">499</span>
+<span id="500">500</span>
+<span id="501">501</span>
+<span id="502">502</span>
+<span id="503">503</span>
+<span id="504">504</span>
+<span id="505">505</span>
+<span id="506">506</span>
+<span id="507">507</span>
 </pre><pre class="rust ">
 <span class="comment">// Copyright (C) 2018 Boyu Yang</span>
 <span class="comment">//</span>
@@ -478,16 +523,19 @@
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Constructor</span> {
     <span class="ident">insts</span>: <span class="ident">definition</span>::<span class="ident">InstructionSet</span>,
     <span class="ident">output</span>: <span class="ident">Cell</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">proc_macro2</span>::<span class="ident">TokenStream</span><span class="op">&gt;&gt;</span>,
+    <span class="ident">opcode_impls</span>: <span class="ident">Cell</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">proc_macro2</span>::<span class="ident">TokenStream</span><span class="op">&gt;&gt;</span>,
     <span class="ident">opcodes_impls</span>: <span class="ident">Cell</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">proc_macro2</span>::<span class="ident">TokenStream</span><span class="op">&gt;&gt;</span>,
 }
 
 <span class="kw">impl</span> <span class="ident">Constructor</span> {
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">insts</span>: <span class="ident">definition</span>::<span class="ident">InstructionSet</span>) <span class="op">-&gt;</span> <span class="self">Self</span> {
         <span class="kw">let</span> <span class="ident">output</span> <span class="op">=</span> <span class="ident">Cell</span>::<span class="ident">new</span>(<span class="ident">Vec</span>::<span class="ident">new</span>());
+        <span class="kw">let</span> <span class="ident">opcode_impls</span> <span class="op">=</span> <span class="ident">Cell</span>::<span class="ident">new</span>(<span class="ident">Vec</span>::<span class="ident">new</span>());
         <span class="kw">let</span> <span class="ident">opcodes_impls</span> <span class="op">=</span> <span class="ident">Cell</span>::<span class="ident">new</span>(<span class="ident">Vec</span>::<span class="ident">new</span>());
         <span class="ident">Constructor</span> {
             <span class="ident">insts</span>,
             <span class="ident">output</span>,
+            <span class="ident">opcode_impls</span>,
             <span class="ident">opcodes_impls</span>,
         }
     }
@@ -498,6 +546,12 @@
         <span class="self">self</span>.<span class="ident">output</span>.<span class="ident">set</span>(<span class="ident">ts_vec</span>);
     }
 
+    <span class="kw">fn</span> <span class="ident">impl_opcode</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">part</span>: <span class="ident">proc_macro2</span>::<span class="ident">TokenStream</span>) {
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">ts_vec</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">opcode_impls</span>.<span class="ident">take</span>();
+        <span class="ident">ts_vec</span>.<span class="ident">push</span>(<span class="ident">part</span>);
+        <span class="self">self</span>.<span class="ident">opcode_impls</span>.<span class="ident">set</span>(<span class="ident">ts_vec</span>);
+    }
+
     <span class="kw">fn</span> <span class="ident">impl_opcodes</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">part</span>: <span class="ident">proc_macro2</span>::<span class="ident">TokenStream</span>) {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">ts_vec</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">opcodes_impls</span>.<span class="ident">take</span>();
         <span class="ident">ts_vec</span>.<span class="ident">push</span>(<span class="ident">part</span>);
@@ -506,9 +560,13 @@
 
     <span class="kw">fn</span> <span class="ident">output</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">proc_macro2</span>::<span class="ident">TokenStream</span> {
         <span class="kw">let</span> <span class="ident">outputs</span> <span class="op">=</span> <span class="ident">proc_macro2</span>::<span class="ident">TokenStream</span>::<span class="ident">from_iter</span>(<span class="self">self</span>.<span class="ident">output</span>.<span class="ident">take</span>());
+        <span class="kw">let</span> <span class="ident">opcode_impls</span> <span class="op">=</span> <span class="ident">proc_macro2</span>::<span class="ident">TokenStream</span>::<span class="ident">from_iter</span>(<span class="self">self</span>.<span class="ident">opcode_impls</span>.<span class="ident">take</span>());
         <span class="kw">let</span> <span class="ident">opcodes_impls</span> <span class="op">=</span> <span class="ident">proc_macro2</span>::<span class="ident">TokenStream</span>::<span class="ident">from_iter</span>(<span class="self">self</span>.<span class="ident">opcodes_impls</span>.<span class="ident">take</span>());
         <span class="macro">quote</span><span class="macro">!</span>(
             #<span class="ident">outputs</span>
+            <span class="kw">impl</span> <span class="ident">OpCode</span> {
+                #<span class="ident">opcode_impls</span>
+            }
             <span class="kw">impl</span> <span class="ident">OpCodes</span> {
                 #<span class="ident">opcodes_impls</span>
             }
@@ -517,6 +575,7 @@
 
     <span class="kw">fn</span> <span class="ident">clear</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) {
         <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">output</span>.<span class="ident">take</span>();
+        <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">opcode_impls</span>.<span class="ident">take</span>();
         <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">opcodes_impls</span>.<span class="ident">take</span>();
     }
 
@@ -528,7 +587,8 @@
         <span class="self">self</span>.<span class="ident">impl_std_fmt_display</span>();
         <span class="self">self</span>.<span class="ident">impl_std_convert_into_bytes</span>();
         <span class="self">self</span>.<span class="ident">impl_std_str_fromstr</span>();
-        <span class="self">self</span>.<span class="ident">impl_opcodes_all</span>();
+        <span class="self">self</span>.<span class="ident">impl_opcode_const</span>();
+        <span class="self">self</span>.<span class="ident">impl_opcodes_convert</span>();
         <span class="self">self</span>.<span class="ident">output</span>()
     }
 
@@ -581,8 +641,8 @@
 
     <span class="kw">fn</span> <span class="ident">def_definition</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) {
         <span class="kw">let</span> <span class="ident">core</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">insts</span>.<span class="ident">for_each_construct</span>(
-            <span class="op">|</span><span class="ident">_value</span>, <span class="ident">mnemonic</span><span class="op">|</span> <span class="macro">quote</span><span class="macro">!</span>(#<span class="ident">mnemonic</span>),
-            <span class="op">|</span><span class="ident">_value</span>, <span class="ident">mnemonic</span>, <span class="ident">iv1_size</span><span class="op">|</span> <span class="macro">quote</span><span class="macro">!</span>(#<span class="ident">mnemonic</span>([<span class="ident">u8</span>; #<span class="ident">iv1_size</span>])),
+            <span class="op">|</span><span class="ident">_value</span>, <span class="ident">mnemonic</span>, <span class="ident">_delta</span>, <span class="ident">_alpha</span><span class="op">|</span> <span class="macro">quote</span><span class="macro">!</span>(#<span class="ident">mnemonic</span>),
+            <span class="op">|</span><span class="ident">_value</span>, <span class="ident">mnemonic</span>, <span class="ident">_delta</span>, <span class="ident">_alpha</span>, <span class="ident">iv1_size</span><span class="op">|</span> <span class="macro">quote</span><span class="macro">!</span>(#<span class="ident">mnemonic</span>([<span class="ident">u8</span>; #<span class="ident">iv1_size</span>])),
         );
         <span class="kw">let</span> <span class="ident">part</span> <span class="op">=</span> <span class="macro">quote</span><span class="macro">!</span>(
             <span class="doccomment">/// Include an instruction and its immediate values if exist.</span>
@@ -640,14 +700,14 @@
 
     <span class="kw">fn</span> <span class="ident">impl_std_fmt_display</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) {
         <span class="kw">let</span> <span class="ident">core</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">insts</span>.<span class="ident">for_each_construct</span>(
-            <span class="op">|</span><span class="ident">_value</span>, <span class="ident">mnemonic</span><span class="op">|</span> {
+            <span class="op">|</span><span class="ident">_value</span>, <span class="ident">mnemonic</span>, <span class="ident">_delta</span>, <span class="ident">_alpha</span><span class="op">|</span> {
                 <span class="macro">quote</span><span class="macro">!</span>(
                     <span class="ident">OpCode</span>::#<span class="ident">mnemonic</span> <span class="op">=&gt;</span> {
                         <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="macro">stringify</span><span class="macro">!</span>(#<span class="ident">mnemonic</span>))<span class="question-mark">?</span>;
                     }
                 )
             },
-            <span class="op">|</span><span class="ident">_value</span>, <span class="ident">mnemonic</span>, <span class="ident">_iv1_size</span><span class="op">|</span> {
+            <span class="op">|</span><span class="ident">_value</span>, <span class="ident">mnemonic</span>, <span class="ident">_delta</span>, <span class="ident">_alpha</span>, <span class="ident">_iv1_size</span><span class="op">|</span> {
                 <span class="macro">quote</span><span class="macro">!</span>(
                     <span class="ident">OpCode</span>::#<span class="ident">mnemonic</span>(<span class="kw-2">ref</span> <span class="ident">iv</span>) <span class="op">=&gt;</span> {
                         <span class="macro">write</span><span class="macro">!</span>(<span class="ident">f</span>, <span class="macro">stringify</span><span class="macro">!</span>(#<span class="ident">mnemonic</span>))<span class="question-mark">?</span>;
@@ -689,8 +749,8 @@
 
     <span class="kw">fn</span> <span class="ident">impl_std_convert_into_bytes</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) {
         <span class="kw">let</span> <span class="ident">core</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">insts</span>.<span class="ident">for_each_construct</span>(
-            <span class="op">|</span><span class="ident">value</span>, <span class="ident">mnemonic</span><span class="op">|</span> <span class="macro">quote</span><span class="macro">!</span>(<span class="ident">OpCode</span>::#<span class="ident">mnemonic</span> <span class="op">=&gt;</span> <span class="ident">ret</span>.<span class="ident">push</span>(#<span class="ident">value</span>),),
-            <span class="op">|</span><span class="ident">value</span>, <span class="ident">mnemonic</span>, <span class="ident">_iv1_size</span><span class="op">|</span> {
+            <span class="op">|</span><span class="ident">value</span>, <span class="ident">mnemonic</span>, <span class="ident">_delta</span>, <span class="ident">_alpha</span><span class="op">|</span> <span class="macro">quote</span><span class="macro">!</span>(<span class="ident">OpCode</span>::#<span class="ident">mnemonic</span> <span class="op">=&gt;</span> <span class="ident">ret</span>.<span class="ident">push</span>(#<span class="ident">value</span>),),
+            <span class="op">|</span><span class="ident">value</span>, <span class="ident">mnemonic</span>, <span class="ident">_delta</span>, <span class="ident">_alpha</span>, <span class="ident">_iv1_size</span><span class="op">|</span> {
                 <span class="macro">quote</span><span class="macro">!</span>(
                     <span class="ident">OpCode</span>::#<span class="ident">mnemonic</span>(<span class="ident">iv</span>) <span class="op">=&gt;</span> {
                         <span class="ident">ret</span>.<span class="ident">push</span>(#<span class="ident">value</span>);
@@ -720,7 +780,7 @@
 
     <span class="kw">fn</span> <span class="ident">impl_std_str_fromstr</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) {
         <span class="kw">let</span> <span class="ident">core</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">insts</span>.<span class="ident">for_each_construct</span>(
-            <span class="op">|</span><span class="ident">_value</span>, <span class="ident">mnemonic</span><span class="op">|</span> {
+            <span class="op">|</span><span class="ident">_value</span>, <span class="ident">mnemonic</span>, <span class="ident">_delta</span>, <span class="ident">_alpha</span><span class="op">|</span> {
                 <span class="macro">quote</span><span class="macro">!</span>(
                     <span class="macro">stringify</span><span class="macro">!</span>(#<span class="ident">mnemonic</span>) <span class="op">=&gt;</span> {
                         <span class="ident">idx</span> <span class="op">+=</span> <span class="number">1</span>;
@@ -728,7 +788,7 @@
                     }
                 )
             },
-            <span class="op">|</span><span class="ident">_value</span>, <span class="ident">mnemonic</span>, <span class="ident">iv1_size</span><span class="op">|</span> {
+            <span class="op">|</span><span class="ident">_value</span>, <span class="ident">mnemonic</span>, <span class="ident">_delta</span>, <span class="ident">_alpha</span>, <span class="ident">iv1_size</span><span class="op">|</span> {
                 <span class="macro">quote</span><span class="macro">!</span>(
                     <span class="macro">stringify</span><span class="macro">!</span>(#<span class="ident">mnemonic</span>) <span class="op">=&gt;</span> {
                         <span class="ident">idx</span> <span class="op">+=</span> <span class="number">1</span>;
@@ -844,9 +904,39 @@
         <span class="self">self</span>.<span class="ident">append</span>(<span class="ident">part</span>);
     }
 
-    <span class="kw">fn</span> <span class="ident">impl_opcodes_all</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+    <span class="kw">fn</span> <span class="ident">impl_opcode_const</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+        <span class="kw">let</span> <span class="ident">delta</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">insts</span>.<span class="ident">for_each_construct</span>(
+            <span class="op">|</span><span class="ident">_value</span>, <span class="ident">mnemonic</span>, <span class="ident">delta</span>, <span class="ident">_alpha</span><span class="op">|</span> <span class="macro">quote</span><span class="macro">!</span>(<span class="ident">OpCode</span>::#<span class="ident">mnemonic</span> <span class="op">=&gt;</span> #<span class="ident">delta</span>),
+            <span class="op">|</span><span class="ident">_value</span>, <span class="ident">mnemonic</span>, <span class="ident">delta</span>, <span class="ident">_alpha</span>, <span class="ident">_iv1_size</span><span class="op">|</span> <span class="macro">quote</span><span class="macro">!</span>(<span class="ident">OpCode</span>::#<span class="ident">mnemonic</span>(..) <span class="op">=&gt;</span> #<span class="ident">delta</span>),
+        );
+        <span class="kw">let</span> <span class="ident">alpha</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">insts</span>.<span class="ident">for_each_construct</span>(
+            <span class="op">|</span><span class="ident">_value</span>, <span class="ident">mnemonic</span>, <span class="ident">_delta</span>, <span class="ident">alpha</span><span class="op">|</span> <span class="macro">quote</span><span class="macro">!</span>(<span class="ident">OpCode</span>::#<span class="ident">mnemonic</span> <span class="op">=&gt;</span> #<span class="ident">alpha</span>),
+            <span class="op">|</span><span class="ident">_value</span>, <span class="ident">mnemonic</span>, <span class="ident">_delta</span>, <span class="ident">alpha</span>, <span class="ident">_iv1_size</span><span class="op">|</span> <span class="macro">quote</span><span class="macro">!</span>(<span class="ident">OpCode</span>::#<span class="ident">mnemonic</span>(..) <span class="op">=&gt;</span> #<span class="ident">alpha</span>),
+        );
+        <span class="kw">let</span> <span class="ident">part</span> <span class="op">=</span> <span class="macro">quote</span><span class="macro">!</span>(
+            <span class="doccomment">/// For each instruction, the items removed from stack.</span>
+            <span class="attribute">#[<span class="ident">inline</span>]</span>
+            <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">stack_removed</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">u8</span> {
+                <span class="kw">match</span> <span class="kw-2">*</span><span class="self">self</span> {
+                    #(#<span class="ident">delta</span>,)<span class="op">*</span>
+                    <span class="ident">OpCode</span>::<span class="ident">BAD</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> <span class="op">!</span><span class="number">0</span>,
+                }
+            }
+            <span class="doccomment">/// For each instruction, the additional items placed on the stack.</span>
+            <span class="attribute">#[<span class="ident">inline</span>]</span>
+            <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">stack_placed</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">u8</span> {
+                <span class="kw">match</span> <span class="kw-2">*</span><span class="self">self</span> {
+                    #(#<span class="ident">alpha</span>,)<span class="op">*</span>
+                    <span class="ident">OpCode</span>::<span class="ident">BAD</span>(<span class="kw">_</span>) <span class="op">=&gt;</span> <span class="op">!</span><span class="number">0</span>,
+                }
+            }
+        );
+        <span class="self">self</span>.<span class="ident">impl_opcode</span>(<span class="ident">part</span>);
+    }
+
+    <span class="kw">fn</span> <span class="ident">impl_opcodes_convert</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) {
         <span class="kw">let</span> <span class="ident">core</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">insts</span>.<span class="ident">for_each_construct</span>(
-            <span class="op">|</span><span class="ident">value</span>, <span class="ident">mnemonic</span><span class="op">|</span> {
+            <span class="op">|</span><span class="ident">value</span>, <span class="ident">mnemonic</span>, <span class="ident">_delta</span>, <span class="ident">_alpha</span><span class="op">|</span> {
                 <span class="macro">quote</span><span class="macro">!</span>(
                     #<span class="ident">value</span> <span class="op">=&gt;</span> {
                         <span class="ident">idx</span> <span class="op">+=</span> <span class="number">1</span>;
@@ -854,7 +944,7 @@
                     }
                 )
             },
-            <span class="op">|</span><span class="ident">value</span>, <span class="ident">mnemonic</span>, <span class="ident">iv1_size</span><span class="op">|</span> {
+            <span class="op">|</span><span class="ident">value</span>, <span class="ident">mnemonic</span>, <span class="ident">_delta</span>, <span class="ident">_alpha</span>, <span class="ident">iv1_size</span><span class="op">|</span> {
                 <span class="macro">quote</span><span class="macro">!</span>(
                     #<span class="ident">value</span> <span class="op">=&gt;</span> {
                         <span class="ident">idx</span> <span class="op">+=</span> <span class="number">1</span>;
