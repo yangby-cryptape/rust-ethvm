@@ -14,8 +14,8 @@ your option.
 [Apache License, Version 2.0]: LICENSE-APACHE
 [MIT License]: LICENSE-MIT
 
-## Documents
+## Index
 
-+ [master]
++ [ethvm]
 
-[master]: docs/master/
+[ethvm]: ethvm/

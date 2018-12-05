@@ -1,0 +1,1 @@
+initSidebarItems({"fn":[["instruction_set","Provide a proc-macro to create [`OpCode`] and [`OpCodes`]."]]});
