@@ -15,16 +15,19 @@ use std::iter::FromIterator;
 pub struct Constructor {
     insts: definition::InstructionSet,
     output: Cell<Vec<proc_macro2::TokenStream>>,
+    opcode_impls: Cell<Vec<proc_macro2::TokenStream>>,
     opcodes_impls: Cell<Vec<proc_macro2::TokenStream>>,
 }
 
 impl Constructor {
     pub fn new(insts: definition::InstructionSet) -> Self {
         let output = Cell::new(Vec::new());
+        let opcode_impls = Cell::new(Vec::new());
         let opcodes_impls = Cell::new(Vec::new());
         Constructor {
             insts,
             output,
+            opcode_impls,
             opcodes_impls,
         }
     }
@@ -35,6 +38,12 @@ impl Constructor {
         self.output.set(ts_vec);
     }
 
+    fn impl_opcode(&self, part: proc_macro2::TokenStream) {
+        let mut ts_vec = self.opcode_impls.take();
+        ts_vec.push(part);
+        self.opcode_impls.set(ts_vec);
+    }
+
     fn impl_opcodes(&self, part: proc_macro2::TokenStream) {
         let mut ts_vec = self.opcodes_impls.take();
         ts_vec.push(part);
@@ -43,9 +52,13 @@ impl Constructor {
 
     fn output(&self) -> proc_macro2::TokenStream {
         let outputs = proc_macro2::TokenStream::from_iter(self.output.take());
+        let opcode_impls = proc_macro2::TokenStream::from_iter(self.opcode_impls.take());
         let opcodes_impls = proc_macro2::TokenStream::from_iter(self.opcodes_impls.take());
         quote!(
             #outputs
+            impl OpCode {
+                #opcode_impls
+            }
             impl OpCodes {
                 #opcodes_impls
             }
@@ -54,6 +67,7 @@ impl Constructor {
 
     fn clear(&self) {
         let _ = self.output.take();
+        let _ = self.opcode_impls.take();
         let _ = self.opcodes_impls.take();
     }
 
@@ -65,7 +79,8 @@ impl Constructor {
         self.impl_std_fmt_display();
         self.impl_std_convert_into_bytes();
         self.impl_std_str_fromstr();
-        self.impl_opcodes_all();
+        self.impl_opcode_const();
+        self.impl_opcodes_convert();
         self.output()
     }
 
@@ -118,8 +133,8 @@ impl Constructor {
 
     fn def_definition(&self) {
         let core = &self.insts.for_each_construct(
-            |_value, mnemonic| quote!(#mnemonic),
-            |_value, mnemonic, iv1_size| quote!(#mnemonic([u8; #iv1_size])),
+            |_value, mnemonic, _delta, _alpha| quote!(#mnemonic),
+            |_value, mnemonic, _delta, _alpha, iv1_size| quote!(#mnemonic([u8; #iv1_size])),
         );
         let part = quote!(
             /// Include an instruction and its immediate values if exist.
@@ -177,14 +192,14 @@ impl Constructor {
 
     fn impl_std_fmt_display(&self) {
         let core = &self.insts.for_each_construct(
-            |_value, mnemonic| {
+            |_value, mnemonic, _delta, _alpha| {
                 quote!(
                     OpCode::#mnemonic => {
                         write!(f, stringify!(#mnemonic))?;
                     }
                 )
             },
-            |_value, mnemonic, _iv1_size| {
+            |_value, mnemonic, _delta, _alpha, _iv1_size| {
                 quote!(
                     OpCode::#mnemonic(ref iv) => {
                         write!(f, stringify!(#mnemonic))?;
@@ -226,8 +241,8 @@ impl Constructor {
 
     fn impl_std_convert_into_bytes(&self) {
         let core = &self.insts.for_each_construct(
-            |value, mnemonic| quote!(OpCode::#mnemonic => ret.push(#value),),
-            |value, mnemonic, _iv1_size| {
+            |value, mnemonic, _delta, _alpha| quote!(OpCode::#mnemonic => ret.push(#value),),
+            |value, mnemonic, _delta, _alpha, _iv1_size| {
                 quote!(
                     OpCode::#mnemonic(iv) => {
                         ret.push(#value);
@@ -257,7 +272,7 @@ impl Constructor {
 
     fn impl_std_str_fromstr(&self) {
         let core = &self.insts.for_each_construct(
-            |_value, mnemonic| {
+            |_value, mnemonic, _delta, _alpha| {
                 quote!(
                     stringify!(#mnemonic) => {
                         idx += 1;
@@ -265,7 +280,7 @@ impl Constructor {
                     }
                 )
             },
-            |_value, mnemonic, iv1_size| {
+            |_value, mnemonic, _delta, _alpha, iv1_size| {
                 quote!(
                     stringify!(#mnemonic) => {
                         idx += 1;
@@ -381,9 +396,39 @@ impl Constructor {
         self.append(part);
     }
 
-    fn impl_opcodes_all(&self) {
+    fn impl_opcode_const(&self) {
+        let delta = &self.insts.for_each_construct(
+            |_value, mnemonic, delta, _alpha| quote!(OpCode::#mnemonic => #delta),
+            |_value, mnemonic, delta, _alpha, _iv1_size| quote!(OpCode::#mnemonic(..) => #delta),
+        );
+        let alpha = &self.insts.for_each_construct(
+            |_value, mnemonic, _delta, alpha| quote!(OpCode::#mnemonic => #alpha),
+            |_value, mnemonic, _delta, alpha, _iv1_size| quote!(OpCode::#mnemonic(..) => #alpha),
+        );
+        let part = quote!(
+            /// For each instruction, the items removed from stack.
+            #[inline]
+            pub fn stack_removed(&self) -> u8 {
+                match *self {
+                    #(#delta,)*
+                    OpCode::BAD(_) => !0,
+                }
+            }
+            /// For each instruction, the additional items placed on the stack.
+            #[inline]
+            pub fn stack_placed(&self) -> u8 {
+                match *self {
+                    #(#alpha,)*
+                    OpCode::BAD(_) => !0,
+                }
+            }
+        );
+        self.impl_opcode(part);
+    }
+
+    fn impl_opcodes_convert(&self) {
         let core = &self.insts.for_each_construct(
-            |value, mnemonic| {
+            |value, mnemonic, _delta, _alpha| {
                 quote!(
                     #value => {
                         idx += 1;
@@ -391,7 +436,7 @@ impl Constructor {
                     }
                 )
             },
-            |value, mnemonic, iv1_size| {
+            |value, mnemonic, _delta, _alpha, iv1_size| {
                 quote!(
                     #value => {
                         idx += 1;

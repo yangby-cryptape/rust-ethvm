@@ -4,7 +4,7 @@ version = "0.1.0"
 authors = ["Boyu Yang<yangby@cryptape.com>"]
 
 [dependencies]
-syn = { version = "0.15", features = ["extra-traits"] }
+syn = { version = "0.15", features = ["full"] }
 quote = "0.6"
 proc-macro2 = "0.4"
 

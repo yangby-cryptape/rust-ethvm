@@ -14,6 +14,10 @@ pub struct Instruction {
     pub value: syn::LitInt,
     pub mnemonic: syn::Ident,
     pub immediate_vec: Vec<syn::LitInt>,
+    // the items removed from stack
+    pub delta: syn::LitInt,
+    // the additional items placed on the stack
+    pub alpha: syn::LitInt,
 }
 
 impl syn::parse::Parse for Instruction {
@@ -23,7 +27,8 @@ impl syn::parse::Parse for Instruction {
         let value = content.parse()?;
         let _: Token![,] = content.parse()?;
         let mnemonic = content.parse()?;
-        let immediate_vec = if content.parse::<Token![,]>().is_ok() {
+        let _: Token![,] = content.parse()?;
+        let immediate_vec = {
             let content_immediate;
             let _ = bracketed!(content_immediate in content);
             let immediate_vec: syn::punctuated::Punctuated<syn::LitInt, Token![,]> =
@@ -37,13 +42,17 @@ impl syn::parse::Parse for Instruction {
                         proc_macro2::Span::call_site(),
                     )
                 }).collect()
-        } else {
-            Vec::new()
         };
+        let _: Token![,] = content.parse()?;
+        let delta = content.parse()?;
+        let _: Token![,] = content.parse()?;
+        let alpha = content.parse()?;
         Ok(Instruction {
             value,
             mnemonic,
             immediate_vec,
+            delta,
+            alpha,
         })
     }
 }
@@ -65,8 +74,9 @@ impl syn::parse::Parse for InstructionSet {
 impl InstructionSet {
     pub fn for_each_construct<F, G>(&self, f: F, g: G) -> Vec<proc_macro2::TokenStream>
     where
-        F: Fn(&syn::LitInt, &syn::Ident) -> proc_macro2::TokenStream,
-        G: Fn(&syn::LitInt, &syn::Ident, &syn::LitInt) -> proc_macro2::TokenStream,
+        F: Fn(&syn::LitInt, &syn::Ident, &syn::LitInt, &syn::LitInt) -> proc_macro2::TokenStream,
+        G: Fn(&syn::LitInt, &syn::Ident, &syn::LitInt, &syn::LitInt, &syn::LitInt)
+            -> proc_macro2::TokenStream,
     {
         self.instructions
             .iter()
@@ -75,13 +85,15 @@ impl InstructionSet {
                     ref value,
                     ref mnemonic,
                     ref immediate_vec,
+                    ref delta,
+                    ref alpha,
                 } = inst;
                 if immediate_vec.is_empty() {
-                    f(value, mnemonic)
+                    f(value, mnemonic, delta, alpha)
                 } else {
                     // now, the size of immediate values only can be 0 or 1
                     let iv1_size = immediate_vec.first().unwrap();
-                    g(value, mnemonic, iv1_size)
+                    g(value, mnemonic, delta, alpha, iv1_size)
                 }
             }).collect()
     }
