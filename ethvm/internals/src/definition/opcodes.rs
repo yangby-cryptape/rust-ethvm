@@ -43,7 +43,8 @@ impl syn::parse::Parse for OpCode {
                         syn::IntSuffix::None,
                         proc_macro2::Span::call_site(),
                     )
-                }).collect()
+                })
+                .collect()
         };
         let _: Token![,] = content.parse()?;
         let delta = content.parse()?;
@@ -94,7 +95,8 @@ impl syn::parse::Parse for OpCodeSet {
                             .entry(mnemonic.clone())
                             .and_modify(|_| {
                                 panic!("the opcode `{}` has been defined twice", mnemonic)
-                            }).or_insert_with(|| value);
+                            })
+                            .or_insert_with(|| value);
                     });
                     caches::OPCODE_VALUE_TABLE.with(|f| {
                         (*f.borrow_mut())
@@ -104,10 +106,12 @@ impl syn::parse::Parse for OpCodeSet {
                                     "the value `{:#04x}` has been used twice ({} and {})",
                                     value, mnemonic_old, mnemonic
                                 )
-                            }).or_insert_with(|| mnemonic.clone());
+                            })
+                            .or_insert_with(|| mnemonic.clone());
                     });
                     opcode
-                }).collect()
+                })
+                .collect()
         };
         Ok(OpCodeSet { opcodes })
     }
@@ -117,8 +121,13 @@ impl OpCodeSet {
     pub fn for_each_construct<F, G>(&self, f: F, g: G) -> Vec<proc_macro2::TokenStream>
     where
         F: Fn(&syn::LitInt, &syn::Ident, &syn::LitInt, &syn::LitInt) -> proc_macro2::TokenStream,
-        G: Fn(&syn::LitInt, &syn::Ident, &syn::LitInt, &syn::LitInt, &syn::LitInt)
-            -> proc_macro2::TokenStream,
+        G: Fn(
+            &syn::LitInt,
+            &syn::Ident,
+            &syn::LitInt,
+            &syn::LitInt,
+            &syn::LitInt,
+        ) -> proc_macro2::TokenStream,
     {
         self.opcodes
             .iter()
@@ -137,6 +146,7 @@ impl OpCodeSet {
                     let iv1_size = immediate_vec.first().unwrap();
                     g(value, mnemonic, delta, alpha, iv1_size)
                 }
-            }).collect()
+            })
+            .collect()
     }
 }

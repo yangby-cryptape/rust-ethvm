@@ -87,46 +87,48 @@ impl Constructor {
     }
 
     fn def_error(&self) {
-        let part = quote!(mod error {
-            #[derive(Debug, Clone, Copy)]
-            pub enum FromValueSlice {
-                BadSizeSince(usize),
-                UnknownValue(usize, u8),
-            }
-            #[derive(Debug, Clone, Copy)]
-            pub enum FromHex {
-                BadSize,
-                BadHexAt(usize),
-            }
-            #[derive(Debug, Clone, Copy)]
-            pub enum FromHexStr {
-                BadSize,
-                BadHexAt(usize),
-                BadValueSlice(FromValueSlice),
-            }
-            #[derive(Debug, Clone)]
-            pub enum FromStr {
-                BadHexSizeFor(usize),
-                BadHexFor(usize),
-                BadHexAt(usize, String, usize),
-                UnknownString(usize, String),
-            }
-            impl ::std::convert::From<FromValueSlice> for FromHexStr {
-                #[inline]
-                fn from(err: FromValueSlice) -> Self {
-                    FromHexStr::BadValueSlice(err)
+        let part = quote!(
+            mod error {
+                #[derive(Debug, Clone, Copy)]
+                pub enum FromValueSlice {
+                    BadSizeSince(usize),
+                    UnknownValue(usize, u8),
                 }
-            }
-            impl ::std::convert::From<FromHex> for FromHexStr {
-                #[inline]
-                fn from(err: FromHex) -> Self {
-                    match err {
-                        FromHex::BadSize => FromHexStr::BadSize,
-                        FromHex::BadHexAt(idx) => FromHexStr::BadHexAt(idx),
+                #[derive(Debug, Clone, Copy)]
+                pub enum FromHex {
+                    BadSize,
+                    BadHexAt(usize),
+                }
+                #[derive(Debug, Clone, Copy)]
+                pub enum FromHexStr {
+                    BadSize,
+                    BadHexAt(usize),
+                    BadValueSlice(FromValueSlice),
+                }
+                #[derive(Debug, Clone)]
+                pub enum FromStr {
+                    BadHexSizeFor(usize),
+                    BadHexFor(usize),
+                    BadHexAt(usize, String, usize),
+                    UnknownString(usize, String),
+                }
+                impl ::std::convert::From<FromValueSlice> for FromHexStr {
+                    #[inline]
+                    fn from(err: FromValueSlice) -> Self {
+                        FromHexStr::BadValueSlice(err)
+                    }
+                }
+                impl ::std::convert::From<FromHex> for FromHexStr {
+                    #[inline]
+                    fn from(err: FromHex) -> Self {
+                        match err {
+                            FromHex::BadSize => FromHexStr::BadSize,
+                            FromHex::BadHexAt(idx) => FromHexStr::BadHexAt(idx),
+                        }
                     }
                 }
             }
-        });
+        );
         self.append(part);
     }
 
@@ -164,28 +166,30 @@ impl Constructor {
     }
 
     fn defun_utils(&self) {
-        let part = quote!(#[inline]
-        fn hexstr_to_bytes(s: &str) -> Result<Vec<u8>, self::error::FromHex> {
-            let len = s.len();
-            if len % 2 != 0 {
-                return Err(self::error::FromHex::BadSize);
-            }
-            let mut ret = vec![0; len / 2];
-            for (idx, chr) in s.bytes().enumerate() {
-                let val = match chr {
-                    b'a'...b'f' => chr - b'a' + 10,
-                    b'A'...b'F' => chr - b'A' + 10,
-                    b'0'...b'9' => chr - b'0',
-                    _ => return Err(self::error::FromHex::BadHexAt(idx)),
-                };
-                if idx % 2 == 0 {
-                    ret[idx / 2] |= val << 4;
-                } else {
-                    ret[idx / 2] |= val;
+        let part = quote!(
+            #[inline]
+            fn hexstr_to_bytes(s: &str) -> Result<Vec<u8>, self::error::FromHex> {
+                let len = s.len();
+                if len % 2 != 0 {
+                    return Err(self::error::FromHex::BadSize);
                 }
+                let mut ret = vec![0; len / 2];
+                for (idx, chr) in s.bytes().enumerate() {
+                    let val = match chr {
+                        b'a'...b'f' => chr - b'a' + 10,
+                        b'A'...b'F' => chr - b'A' + 10,
+                        b'0'...b'9' => chr - b'0',
+                        _ => return Err(self::error::FromHex::BadHexAt(idx)),
+                    };
+                    if idx % 2 == 0 {
+                        ret[idx / 2] |= val << 4;
+                    } else {
+                        ret[idx / 2] |= val;
+                    }
+                }
+                Ok(ret)
             }
-            Ok(ret)
-        });
+        );
         self.append(part);
     }
 
