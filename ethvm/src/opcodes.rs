@@ -6,9 +6,9 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use ethvm_internals::define_opcodes;
+use ethvm_internals;
 
-define_opcodes!([
+ethvm_internals::define_opcodes!([
     (0x00, STOP, [], 0, 0),
     (0x01, ADD, [], 2, 1),
     (0x02, MUL, [], 2, 1),

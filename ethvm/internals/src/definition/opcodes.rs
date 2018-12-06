@@ -9,6 +9,8 @@
 use proc_macro2;
 use syn;
 
+use caches;
+
 #[derive(Clone)]
 pub struct OpCode {
     pub value: syn::LitInt,
@@ -57,6 +59,19 @@ impl syn::parse::Parse for OpCode {
     }
 }
 
+impl OpCode {
+    pub fn value(&self) -> u8 {
+        let value = self.value.value();
+        if value > 255 {
+            panic!(
+                "The value ({}) of the OpCode({}) should in [0, 255].",
+                value, self.mnemonic,
+            );
+        }
+        value as u8
+    }
+}
+
 #[derive(Clone)]
 pub struct OpCodeSet {
     pub opcodes: Vec<OpCode>,
@@ -69,7 +84,30 @@ impl syn::parse::Parse for OpCodeSet {
         let opcodes = {
             let opcodes: syn::punctuated::Punctuated<OpCode, Token![,]> =
                 content.parse_terminated(syn::parse::Parse::parse)?;
-            opcodes.into_iter().collect()
+            opcodes
+                .into_iter()
+                .map(|opcode| {
+                    let value = opcode.value();
+                    let mnemonic = &opcode.mnemonic.to_string();
+                    caches::OPCODE_TABLE.with(|f| {
+                        (*f.borrow_mut())
+                            .entry(mnemonic.clone())
+                            .and_modify(|_| {
+                                panic!("the opcode `{}` has been defined twice", mnemonic)
+                            }).or_insert_with(|| value);
+                    });
+                    caches::OPCODE_VALUE_TABLE.with(|f| {
+                        (*f.borrow_mut())
+                            .entry(value)
+                            .and_modify(|mnemonic_old| {
+                                panic!(
+                                    "the value `{:#04x}` has been used twice ({} and {})",
+                                    value, mnemonic_old, mnemonic
+                                )
+                            }).or_insert_with(|| mnemonic.clone());
+                    });
+                    opcode
+                }).collect()
         };
         Ok(OpCodeSet { opcodes })
     }

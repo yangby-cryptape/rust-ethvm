@@ -6,8 +6,13 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-mod actions;
-mod opcodes;
+use std::cell::RefCell;
+use std::collections::HashMap;
 
-pub use self::actions::{Action, ActionGroup};
-pub use self::opcodes::{OpCode, OpCodeSet};
+thread_local!(
+    pub static OPCODE_TABLE: RefCell<HashMap<String, u8>> = RefCell::new(HashMap::new())
+);
+
+thread_local!(
+    pub static OPCODE_VALUE_TABLE: RefCell<HashMap<u8, String>> = RefCell::new(HashMap::new())
+);

@@ -6,11 +6,12 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use definition;
-use proc_macro2;
-
 use std::cell::Cell;
 use std::iter::FromIterator;
+
+use proc_macro2;
+
+use definition;
 
 pub struct Constructor {
     opset: definition::OpCodeSet,

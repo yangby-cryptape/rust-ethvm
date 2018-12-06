@@ -6,9 +6,22 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-extern crate ethvm_internals;
+use ethvm_internals;
 
-mod opcodes; // Should be the first module.
-pub use opcodes::{OpCode, OpCodeStmt};
+// TODO Unimplemented!
+pub type ActionFunc = fn();
 
-pub mod actions;
+ethvm_internals::create_action_groups!(
+    ACTIONS_GROUP_DEFAULT,
+    [
+        |STOP| {
+            println!("[Action] STOP");
+        },
+        |ADD| {
+            println!("[Action] ADD");
+        },
+    ],
+    {
+        println!("[Action] UNKNOWN");
+    }
+);
