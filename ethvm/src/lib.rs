@@ -8,6 +8,8 @@
 
 extern crate ethvm_internals;
 
+pub mod stack;
+
 mod opcodes; // Should be the first module.
 pub use opcodes::{OpCode, OpCodeStmt};
 
