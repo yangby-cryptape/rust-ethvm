@@ -3,9 +3,9 @@
 [![License]](#license)
 [![Travis CI]](https://travis-ci.com/yangby-cryptape/rust-ethvm)
 
-A Ethereum Virtual Machine implemented in Rust.
+An Ethereum Virtual Machine implemented in Rust.
 
-[License]: https://img.shields.io/badge/License-MIT%2FApache--2.0-blue.svg
+[License]: https://img.shields.io/badge/License-Apache--2.0%20OR%20MIT-blue.svg
 [Travis CI]: https://img.shields.io/travis/com/yangby-cryptape/rust-ethvm.svg
 
 ## License

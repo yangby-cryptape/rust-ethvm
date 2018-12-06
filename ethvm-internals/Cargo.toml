@@ -1,8 +1,8 @@
 [package]
-name = "ethvm"
+name = "ethvm-internals"
 version = "0.1.0"
-authors = ["Boyu Yang <yangby@cryptape.com>"]
-description = "An Ethereum Virtual Machine implemented in Rust."
+authors = ["Boyu Yang<yangby@cryptape.com>"]
+description = "Internal proc-macros of EthVM."
 homepage = "https://yangby-cryptape.github.io/rust-ethvm/"
 repository = "https://github.com/yangby-cryptape/rust-ethvm"
 keywords = ["evm"]
@@ -10,4 +10,9 @@ categories = []
 license = "Apache-2.0 OR MIT"
 
 [dependencies]
-ethvm-internals = { version = "0.1.0", path = "../ethvm-internals" }
+syn = { version = "0.15", features = ["full"] }
+quote = "0.6"
+proc-macro2 = "0.4"
+
+[lib]
+proc-macro = true
