@@ -8,24 +8,24 @@
 
 extern crate ethvm;
 
-use ethvm::OpCodes;
+use ethvm::OpCodeStmt;
 
 #[test]
 fn convert_between_opcodes_and_binary() {
     fn test(opcodes: &str, binary: &str) {
         use std::str::FromStr;
 
-        let ocs_from_str = OpCodes::from_str(opcodes).unwrap();
-        let ocs_from_hex_str = OpCodes::from_hex_str_allow_bad(binary).unwrap();
-        assert_eq!(ocs_from_str, ocs_from_hex_str);
+        let stmt_from_str = OpCodeStmt::from_str(opcodes).unwrap();
+        let stmt_from_hex_str = OpCodeStmt::from_hex_str_allow_unknown(binary).unwrap();
+        assert_eq!(stmt_from_str, stmt_from_hex_str);
 
-        let r = format!("{}", ocs_from_str);
-        let ocs_from_display = OpCodes::from_str(r.as_ref()).unwrap();
-        assert_eq!(ocs_from_str, ocs_from_display);
+        let r = format!("{}", stmt_from_str);
+        let stmt_from_display = OpCodeStmt::from_str(r.as_ref()).unwrap();
+        assert_eq!(stmt_from_str, stmt_from_display);
 
-        let v: Vec<u8> = (&ocs_from_str).into();
-        let ocs_from_slice = OpCodes::from_slice_allow_bad(&v[..]).unwrap();
-        assert_eq!(ocs_from_str, ocs_from_slice);
+        let v: Vec<u8> = (&stmt_from_str).into();
+        let stmt_from_value_slice = OpCodeStmt::from_value_slice_allow_unknown(&v[..]).unwrap();
+        assert_eq!(stmt_from_str, stmt_from_value_slice);
     }
 
     /* Solc Version

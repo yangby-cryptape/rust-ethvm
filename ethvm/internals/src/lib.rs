@@ -5,6 +5,7 @@
 // <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
+
 //! Provide some proc-macros.
 
 #![recursion_limit = "256"]
@@ -20,40 +21,42 @@ extern crate quote;
 mod constructor;
 mod definition;
 
-/// Provide a proc-macro to create [`OpCode`] and [`OpCodes`].
+/// Provide a proc-macro to create [`OpCode`] and [`OpCodeStmt`].
 ///
 /// [`OpCode`]: ../ethvm/enum.OpCode.html
-/// [`OpCodes`]: ../ethvm/struct.OpCodes.html
+/// [`OpCodeStmt`]: ../ethvm/struct.OpCodeStmt.html
 ///
 /// # Usage
 ///
 /// ```ignore
-/// instruction_set![
-///     (0x00, STOP, [], 0, 0),
-///     (0x01, ADD, [], 2, 1),
-///     (0x02, MUL, [], 2, 1),
-///     (0x03, SUB, [], 2, 1),
-///     ... ...
-///     (0x60, PUSH1, [1], 0, 1),
-///     (0x61, PUSH2, [2], 0, 1),
-///     (0x62, PUSH3, [3], 0, 1),
-///     ... ...
-/// ];
+/// define_opcodes!(
+///     [
+///         (0x00, STOP, [], 0, 0),
+///         (0x01, ADD, [], 2, 1),
+///         (0x02, MUL, [], 2, 1),
+///         (0x03, SUB, [], 2, 1),
+///         ... ...
+///         (0x60, PUSH1, [1], 0, 1),
+///         (0x61, PUSH2, [2], 0, 1),
+///         (0x62, PUSH3, [3], 0, 1),
+///         ... ...
+///     ]
+/// );
 /// ```
 ///
 /// The input for this macro is a list.
 ///
-/// Each element in the list is a tuple:
-/// - The 1st element in the tuple is the value of the instruction.
+/// Each element in the tuple is a tuple:
+/// - The 1st element in the tuple is the value of the opcode.
 /// - The 2nd element is the mnemonic.
 /// - The 3rd element is an array of immediate values's sizes.
 /// - The 4th element is the size of the items removed from stack.
 /// - The 5th element is the size of the additional items placed on the stack.
 #[proc_macro]
-pub fn instruction_set(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let inputs = parse_macro_input!(input as definition::InstructionSet);
+pub fn define_opcodes(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let inputs = parse_macro_input!(input as definition::OpCodeSet);
     let expanded = {
-        let constructor = constructor::Constructor::new(inputs.clone());
+        let constructor = constructor::OpCodesConstructor::new(inputs.clone());
         constructor.construct_all()
     };
     expanded.into()

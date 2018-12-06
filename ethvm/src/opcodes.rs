@@ -6,9 +6,9 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use ethvm_internals::instruction_set;
+use ethvm_internals::define_opcodes;
 
-instruction_set![
+define_opcodes!([
     (0x00, STOP, [], 0, 0),
     (0x01, ADD, [], 2, 1),
     (0x02, MUL, [], 2, 1),
@@ -144,4 +144,4 @@ instruction_set![
     (0xfd, REVERT, [], 2, 0),
     (0xfe, INVALID, [], 0, 0),
     (0xff, SELFDESTRUCT, [], 1, 0),
-];
+]);

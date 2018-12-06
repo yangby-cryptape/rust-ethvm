@@ -13,22 +13,22 @@ use std::cell::Cell;
 use std::iter::FromIterator;
 
 pub struct Constructor {
-    insts: definition::InstructionSet,
+    opset: definition::OpCodeSet,
     output: Cell<Vec<proc_macro2::TokenStream>>,
     opcode_impls: Cell<Vec<proc_macro2::TokenStream>>,
-    opcodes_impls: Cell<Vec<proc_macro2::TokenStream>>,
+    opstmt_impls: Cell<Vec<proc_macro2::TokenStream>>,
 }
 
 impl Constructor {
-    pub fn new(insts: definition::InstructionSet) -> Self {
+    pub fn new(opset: definition::OpCodeSet) -> Self {
         let output = Cell::new(Vec::new());
         let opcode_impls = Cell::new(Vec::new());
-        let opcodes_impls = Cell::new(Vec::new());
+        let opstmt_impls = Cell::new(Vec::new());
         Constructor {
-            insts,
+            opset,
             output,
             opcode_impls,
-            opcodes_impls,
+            opstmt_impls,
         }
     }
 
@@ -44,23 +44,23 @@ impl Constructor {
         self.opcode_impls.set(ts_vec);
     }
 
-    fn impl_opcodes(&self, part: proc_macro2::TokenStream) {
-        let mut ts_vec = self.opcodes_impls.take();
+    fn impl_opstmt(&self, part: proc_macro2::TokenStream) {
+        let mut ts_vec = self.opstmt_impls.take();
         ts_vec.push(part);
-        self.opcodes_impls.set(ts_vec);
+        self.opstmt_impls.set(ts_vec);
     }
 
     fn output(&self) -> proc_macro2::TokenStream {
         let outputs = proc_macro2::TokenStream::from_iter(self.output.take());
         let opcode_impls = proc_macro2::TokenStream::from_iter(self.opcode_impls.take());
-        let opcodes_impls = proc_macro2::TokenStream::from_iter(self.opcodes_impls.take());
+        let opstmt_impls = proc_macro2::TokenStream::from_iter(self.opstmt_impls.take());
         quote!(
             #outputs
             impl OpCode {
                 #opcode_impls
             }
-            impl OpCodes {
-                #opcodes_impls
+            impl OpCodeStmt {
+                #opstmt_impls
             }
         )
     }
@@ -68,7 +68,7 @@ impl Constructor {
     fn clear(&self) {
         let _ = self.output.take();
         let _ = self.opcode_impls.take();
-        let _ = self.opcodes_impls.take();
+        let _ = self.opstmt_impls.take();
     }
 
     pub fn construct_all(&self) -> proc_macro2::TokenStream {
@@ -79,60 +79,58 @@ impl Constructor {
         self.impl_std_fmt_display();
         self.impl_std_convert_into_bytes();
         self.impl_std_str_fromstr();
+        self.impl_std_iter();
         self.impl_opcode_const();
-        self.impl_opcodes_convert();
+        self.impl_opstmt_convert();
         self.output()
     }
 
     fn def_error(&self) {
-        let part = quote!(
-            // All errors for instructions.
-            mod error {
-                #[derive(Debug, Clone, Copy)]
-                pub enum FromSlice {
-                    BadSizeSince(usize),
-                    BadInstruction(usize, u8),
+        let part = quote!(mod error {
+            #[derive(Debug, Clone, Copy)]
+            pub enum FromValueSlice {
+                BadSizeSince(usize),
+                UnknownValue(usize, u8),
+            }
+            #[derive(Debug, Clone, Copy)]
+            pub enum FromHex {
+                BadSize,
+                BadHexAt(usize),
+            }
+            #[derive(Debug, Clone, Copy)]
+            pub enum FromHexStr {
+                BadSize,
+                BadHexAt(usize),
+                BadValueSlice(FromValueSlice),
+            }
+            #[derive(Debug, Clone)]
+            pub enum FromStr {
+                BadHexSizeFor(usize),
+                BadHexFor(usize),
+                BadHexAt(usize, String, usize),
+                UnknownString(usize, String),
+            }
+            impl ::std::convert::From<FromValueSlice> for FromHexStr {
+                #[inline]
+                fn from(err: FromValueSlice) -> Self {
+                    FromHexStr::BadValueSlice(err)
                 }
-                #[derive(Debug, Clone, Copy)]
-                pub enum FromHex {
-                    BadSize,
-                    BadHexAt(usize),
-                }
-                #[derive(Debug, Clone, Copy)]
-                pub enum FromHexStr {
-                    BadSize,
-                    BadHexAt(usize),
-                    BadSlice(FromSlice),
-                }
-                #[derive(Debug, Clone)]
-                pub enum FromStr {
-                    BadHexSizeFor(usize),
-                    BadHexFor(usize),
-                    BadHexAt(usize, String, usize),
-                    BadInstruction(usize, String),
-                }
-                impl ::std::convert::From<FromSlice> for FromHexStr {
-                    #[inline]
-                    fn from(err: FromSlice) -> Self {
-                        FromHexStr::BadSlice(err)
-                    }
-                }
-                impl ::std::convert::From<FromHex> for FromHexStr {
-                    #[inline]
-                    fn from(err: FromHex) -> Self {
-                        match err {
-                            FromHex::BadSize => FromHexStr::BadSize,
-                            FromHex::BadHexAt(idx) => FromHexStr::BadHexAt(idx),
-                        }
+            }
+            impl ::std::convert::From<FromHex> for FromHexStr {
+                #[inline]
+                fn from(err: FromHex) -> Self {
+                    match err {
+                        FromHex::BadSize => FromHexStr::BadSize,
+                        FromHex::BadHexAt(idx) => FromHexStr::BadHexAt(idx),
                     }
                 }
             }
-        );
+        });
         self.append(part);
     }
 
     fn def_definition(&self) {
-        let core = &self.insts.for_each_construct(
+        let core = &self.opset.for_each_construct(
             |_value, mnemonic, _delta, _alpha| quote!(#mnemonic),
             |_value, mnemonic, _delta, _alpha, iv1_size| quote!(#mnemonic([u8; #iv1_size])),
         );
@@ -142,24 +140,24 @@ impl Constructor {
             /// More details can be found in the chapter Appendix H. Virtual Machine Specification
             /// of [Ethereum Yellow Paper].
             ///
-            /// Defined by the proc-macro [`instruction_set`].
+            /// Defined by the proc-macro [`define_opcodes`].
             ///
-            /// [`instruction_set`]: ../ethvm_internals/fn.instruction_set.html
+            /// [`define_opcodes`]: ../ethvm_internals/fn.define_opcodes.html
             /// [Ethereum Yellow Paper]: https://ethereum.github.io/yellowpaper/paper.pdf
             #[derive(Debug, Clone, PartialEq, Eq)]
             pub enum OpCode {
                 #(#core,)*
-                BAD(u8),
+                UNKNOWN(u8),
             }
 
             /// A sequence of [`OpCode`].
             ///
-            /// Defined by the proc-macro [`instruction_set`].
+            /// Defined by the proc-macro [`define_opcodes`].
             ///
             /// [`OpCode`]: ./enum.OpCode.html
-            /// [`instruction_set`]: ../ethvm_internals/fn.instruction_set.html
+            /// [`define_opcodes`]: ../ethvm_internals/fn.define_opcodes.html
             #[derive(Debug, Clone, PartialEq, Eq)]
-            pub struct OpCodes (Vec<OpCode>);
+            pub struct OpCodeStmt (Vec<OpCode>);
         );
         self.append(part);
     }
@@ -191,7 +189,7 @@ impl Constructor {
     }
 
     fn impl_std_fmt_display(&self) {
-        let core = &self.insts.for_each_construct(
+        let core = &self.opset.for_each_construct(
             |_value, mnemonic, _delta, _alpha| {
                 quote!(
                     OpCode::#mnemonic => {
@@ -217,18 +215,18 @@ impl Constructor {
                 fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
                     match *self {
                         #(#core)*
-                        OpCode::BAD(v) => write!(f, "BAD {:#x}", v)?,
+                        OpCode::UNKNOWN(v) => write!(f, "UNKNOWN {:#x}", v)?,
                     }
                     Ok(())
                 }
             }
-            impl ::std::fmt::Display for OpCodes {
+            impl ::std::fmt::Display for OpCodeStmt {
                 #[inline]
                 fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
-                    for oc in self.0.iter() {
-                        match *oc {
+                    for opcode in self.0.iter() {
+                        match *opcode {
                             #(#core)*
-                            OpCode::BAD(v) => write!(f, "BAD {:#x}", v)?,
+                            OpCode::UNKNOWN(v) => write!(f, "UNKNOWN {:#x}", v)?,
                         }
                         writeln!(f)?;
                     }
@@ -240,7 +238,7 @@ impl Constructor {
     }
 
     fn impl_std_convert_into_bytes(&self) {
-        let core = &self.insts.for_each_construct(
+        let core = &self.opset.for_each_construct(
             |value, mnemonic, _delta, _alpha| quote!(OpCode::#mnemonic => ret.push(#value),),
             |value, mnemonic, _delta, _alpha, _iv1_size| {
                 quote!(
@@ -252,15 +250,15 @@ impl Constructor {
             },
         );
         let part = quote!(
-            impl<'a> ::std::convert::From<&'a OpCodes> for Vec<u8> {
+            impl<'a> ::std::convert::From<&'a OpCodeStmt> for Vec<u8> {
                 #[inline]
-                fn from(ocs: &OpCodes) -> Self {
-                    let OpCodes (ref ocs) = ocs;
-                    let mut ret = Vec::with_capacity(ocs.len()+32*16);
-                    for oc in ocs.iter() {
-                        match *oc {
+                fn from(opstmt: &OpCodeStmt) -> Self {
+                    let OpCodeStmt (ref opcodes) = opstmt;
+                    let mut ret = Vec::with_capacity(opcodes.len()+32*16);
+                    for opcode in opcodes.iter() {
+                        match *opcode {
                             #(#core)*
-                            OpCode::BAD(v) => ret.push(v),
+                            OpCode::UNKNOWN(v) => ret.push(v),
                         }
                     }
                     ret
@@ -271,7 +269,7 @@ impl Constructor {
     }
 
     fn impl_std_str_fromstr(&self) {
-        let core = &self.insts.for_each_construct(
+        let core = &self.opset.for_each_construct(
             |_value, mnemonic, _delta, _alpha| {
                 quote!(
                     stringify!(#mnemonic) => {
@@ -320,7 +318,7 @@ impl Constructor {
             },
         );
         let part = quote!(
-            impl ::std::str::FromStr for OpCodes {
+            impl ::std::str::FromStr for OpCodeStmt {
                 type Err = self::error::FromStr;
                 #[inline]
                 fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -337,25 +335,25 @@ impl Constructor {
                     let mut ret = Vec::with_capacity(len+32*16);
                     let mut idx = 0;
                     while idx < len {
-                        let oc = match s[idx] {
+                        let opcode = match s[idx] {
                             #(#core)*
                             other => {
-                                if other == "BAD" {
+                                if other == "UNKNOWN" {
                                     idx += 1;
                                 }
-                                let bad = s[idx];
-                                let len = bad.len();
+                                let next = s[idx];
+                                let len = next.len();
                                 if 2 >= len || len > 4 {
                                     return Err(
-                                        self::error::FromStr::BadInstruction(idx, bad.to_owned())
+                                        self::error::FromStr::UnknownString(idx, next.to_owned())
                                     );
                                 }
-                                if &bad[0..2] != "0x" {
+                                if &next[0..2] != "0x" {
                                     return Err(
-                                        self::error::FromStr::BadInstruction(idx, bad.to_owned())
+                                        self::error::FromStr::UnknownString(idx, next.to_owned())
                                     );
                                 }
-                                let t = bad.as_bytes();
+                                let t = next.as_bytes();
                                 let x = {
                                     let chr = t[2];
                                     match chr {
@@ -363,13 +361,13 @@ impl Constructor {
                                         b'A'...b'F' => chr - b'A' + 10,
                                         b'0'...b'9' => chr - b'0',
                                         _ => return Err(
-                                            self::error::FromStr::BadInstruction(idx, bad.to_owned())
+                                            self::error::FromStr::UnknownString(idx, next.to_owned())
                                         ),
                                     }
                                 };
                                 if len == 3 {
                                     idx += 1;
-                                    OpCode::BAD(x)
+                                    OpCode::UNKNOWN(x)
                                 } else {
                                     let y = {
                                         let chr = t[3];
@@ -378,18 +376,42 @@ impl Constructor {
                                             b'A'...b'F' => chr - b'A' + 10,
                                             b'0'...b'9' => chr - b'0',
                                             _ => return Err(
-                                                self::error::FromStr::BadInstruction(idx, bad.to_owned())
+                                                self::error::FromStr::UnknownString(idx, next.to_owned())
                                             ),
                                         }
                                     };
                                     idx += 1;
-                                    OpCode::BAD(x*16+y)
+                                    OpCode::UNKNOWN(x*16+y)
                                 }
                             },
                         };
-                        ret.push(oc);
+                        ret.push(opcode);
                     }
-                    Ok(OpCodes(ret))
+                    Ok(OpCodeStmt(ret))
+                }
+            }
+        );
+        self.append(part);
+    }
+
+    fn impl_std_iter(&self) {
+        let part = quote!(
+            impl ::std::iter::FromIterator<OpCode> for OpCodeStmt {
+                #[inline]
+                fn from_iter<I: IntoIterator<Item=OpCode>>(iter: I) -> Self {
+                    let mut c = Vec::new();
+                    for i in iter {
+                        c.push(i);
+                    }
+                    OpCodeStmt(c)
+                }
+            }
+            impl ::std::iter::IntoIterator for OpCodeStmt {
+                type Item = OpCode;
+                type IntoIter = ::std::vec::IntoIter<OpCode>;
+                #[inline]
+                fn into_iter(self) -> Self::IntoIter {
+                    self.0.into_iter()
                 }
             }
         );
@@ -397,37 +419,48 @@ impl Constructor {
     }
 
     fn impl_opcode_const(&self) {
-        let delta = &self.insts.for_each_construct(
+        let value = &self.opset.for_each_construct(
+            |value, mnemonic, _delta, _alpha| quote!(OpCode::#mnemonic => #value),
+            |value, mnemonic, _delta, _alpha, _iv1_size| quote!(OpCode::#mnemonic(..) => #value),
+        );
+        let delta = &self.opset.for_each_construct(
             |_value, mnemonic, delta, _alpha| quote!(OpCode::#mnemonic => #delta),
             |_value, mnemonic, delta, _alpha, _iv1_size| quote!(OpCode::#mnemonic(..) => #delta),
         );
-        let alpha = &self.insts.for_each_construct(
+        let alpha = &self.opset.for_each_construct(
             |_value, mnemonic, _delta, alpha| quote!(OpCode::#mnemonic => #alpha),
             |_value, mnemonic, _delta, alpha, _iv1_size| quote!(OpCode::#mnemonic(..) => #alpha),
         );
         let part = quote!(
-            /// For each instruction, the items removed from stack.
+            /// Get the value of an opcode.
+            pub fn value(&self) -> u8 {
+                match *self {
+                    #(#value,)*
+                    OpCode::UNKNOWN(val) => val,
+                }
+            }
+            /// For each opcode, the items removed from stack.
             #[inline]
             pub fn stack_removed(&self) -> u8 {
                 match *self {
                     #(#delta,)*
-                    OpCode::BAD(_) => !0,
+                    OpCode::UNKNOWN(_) => !0,
                 }
             }
-            /// For each instruction, the additional items placed on the stack.
+            /// For each opcode, the additional items placed on the stack.
             #[inline]
             pub fn stack_placed(&self) -> u8 {
                 match *self {
                     #(#alpha,)*
-                    OpCode::BAD(_) => !0,
+                    OpCode::UNKNOWN(_) => !0,
                 }
             }
         );
         self.impl_opcode(part);
     }
 
-    fn impl_opcodes_convert(&self) {
-        let core = &self.insts.for_each_construct(
+    fn impl_opstmt_convert(&self) {
+        let core = &self.opset.for_each_construct(
             |value, mnemonic, _delta, _alpha| {
                 quote!(
                     #value => {
@@ -454,54 +487,57 @@ impl Constructor {
             },
         );
         let part = quote!(
-            /// Parse opcodes from str.
+            /// Parse `OpCodeStmt` from string.
             #[inline]
             pub fn from_hex_str(string: &str) -> Result<Self, self::error::FromHexStr> {
                 let slice = hexstr_to_bytes(string)?;
-                let ocs = OpCodes::from_slice(&slice[..])?;
-                Ok(ocs)
+                Ok(OpCodeStmt::from_value_slice(&slice[..])?)
             }
-            /// Parse opcodes from str, allow bad instructions.
+            /// Parse `OpCodeStmt` from string, allow unknown `OpCode`.
             #[inline]
-            pub fn from_hex_str_allow_bad(string: &str) -> Result<Self, self::error::FromHexStr> {
+            pub fn from_hex_str_allow_unknown(string: &str) -> Result<Self, self::error::FromHexStr> {
                 let slice = hexstr_to_bytes(string)?;
-                let ocs = OpCodes::from_slice_allow_bad(&slice[..])?;
-                Ok(ocs)
+                Ok(OpCodeStmt::from_value_slice_allow_unknown(&slice[..])?)
             }
-            /// Parse opcodes from slice.
+            /// Parse `OpCodeStmt` from an `OpCode` value slice.
             #[inline]
-            pub fn from_slice(slice: &[u8]) -> Result<Self, self::error::FromSlice> {
+            pub fn from_value_slice(slice: &[u8]) -> Result<Self, self::error::FromValueSlice> {
                 let len = slice.len();
                 let mut ret = Vec::with_capacity(len);
                 let mut idx = 0;
                 while idx < len {
-                    let oc = match slice[idx] {
+                    let opcode = match slice[idx] {
                         #(#core)*
-                        v => return Err(self::error::FromSlice::BadInstruction(idx, v)),
+                        v => return Err(self::error::FromValueSlice::UnknownValue(idx, v)),
                     };
-                    ret.push(oc);
+                    ret.push(opcode);
                 }
-                Ok(OpCodes(ret))
+                Ok(OpCodeStmt(ret))
             }
-            /// Parse opcodes from slice, allow bad instructions.
+            /// Parse `OpCodeStmt` from an `OpCode` value slice, allow unknown `OpCode`.
             #[inline]
-            pub fn from_slice_allow_bad(slice: &[u8]) -> Result<Self, self::error::FromSlice> {
+            pub fn from_value_slice_allow_unknown(slice: &[u8]) -> Result<Self, self::error::FromValueSlice> {
                 let len = slice.len();
                 let mut ret = Vec::with_capacity(len);
                 let mut idx = 0;
                 while idx < len {
-                    let oc = match slice[idx] {
+                    let opcode = match slice[idx] {
                         #(#core)*
                         v => {
                             idx += 1;
-                            OpCode::BAD(v)
+                            OpCode::UNKNOWN(v)
                         }
                     };
-                    ret.push(oc);
+                    ret.push(opcode);
                 }
-                Ok(OpCodes(ret))
+                Ok(OpCodeStmt(ret))
+            }
+            /// Convert `OpCodeStmt` to a `OpCode` slice.
+            #[inline]
+            pub fn as_slice(&self) -> &[OpCode] {
+                &self.0[..]
             }
         );
-        self.impl_opcodes(part);
+        self.impl_opstmt(part);
     }
 }

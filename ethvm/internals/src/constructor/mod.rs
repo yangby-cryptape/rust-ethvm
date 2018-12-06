@@ -6,8 +6,6 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-extern crate ethvm_internals;
-
 mod opcodes;
 
-pub use opcodes::{OpCode, OpCodeStmt};
+pub use self::opcodes::Constructor as OpCodesConstructor;

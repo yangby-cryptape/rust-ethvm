@@ -10,7 +10,7 @@ use proc_macro2;
 use syn;
 
 #[derive(Clone)]
-pub struct Instruction {
+pub struct OpCode {
     pub value: syn::LitInt,
     pub mnemonic: syn::Ident,
     pub immediate_vec: Vec<syn::LitInt>,
@@ -20,7 +20,7 @@ pub struct Instruction {
     pub alpha: syn::LitInt,
 }
 
-impl syn::parse::Parse for Instruction {
+impl syn::parse::Parse for OpCode {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         let content;
         let _ = parenthesized!(content in input);
@@ -47,7 +47,7 @@ impl syn::parse::Parse for Instruction {
         let delta = content.parse()?;
         let _: Token![,] = content.parse()?;
         let alpha = content.parse()?;
-        Ok(Instruction {
+        Ok(OpCode {
             value,
             mnemonic,
             immediate_vec,
@@ -58,36 +58,40 @@ impl syn::parse::Parse for Instruction {
 }
 
 #[derive(Clone)]
-pub struct InstructionSet {
-    pub instructions: Vec<Instruction>,
+pub struct OpCodeSet {
+    pub opcodes: Vec<OpCode>,
 }
 
-impl syn::parse::Parse for InstructionSet {
+impl syn::parse::Parse for OpCodeSet {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        let instructions: syn::punctuated::Punctuated<Instruction, Token![,]> =
-            input.parse_terminated(syn::parse::Parse::parse)?;
-        let instructions = instructions.into_iter().collect();
-        Ok(InstructionSet { instructions })
+        let content;
+        let _ = bracketed!(content in input);
+        let opcodes = {
+            let opcodes: syn::punctuated::Punctuated<OpCode, Token![,]> =
+                content.parse_terminated(syn::parse::Parse::parse)?;
+            opcodes.into_iter().collect()
+        };
+        Ok(OpCodeSet { opcodes })
     }
 }
 
-impl InstructionSet {
+impl OpCodeSet {
     pub fn for_each_construct<F, G>(&self, f: F, g: G) -> Vec<proc_macro2::TokenStream>
     where
         F: Fn(&syn::LitInt, &syn::Ident, &syn::LitInt, &syn::LitInt) -> proc_macro2::TokenStream,
         G: Fn(&syn::LitInt, &syn::Ident, &syn::LitInt, &syn::LitInt, &syn::LitInt)
             -> proc_macro2::TokenStream,
     {
-        self.instructions
+        self.opcodes
             .iter()
-            .map(|inst| {
-                let Instruction {
+            .map(|opcode| {
+                let OpCode {
                     ref value,
                     ref mnemonic,
                     ref immediate_vec,
                     ref delta,
                     ref alpha,
-                } = inst;
+                } = opcode;
                 if immediate_vec.is_empty() {
                     f(value, mnemonic, delta, alpha)
                 } else {
